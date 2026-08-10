@@ -154,12 +154,12 @@
   <div class="header">
     <div style="min-width:0;flex:1">
       <h1 id="dash-title">Loading...</h1>
-      <div class="sub" id="dash-sub">â</div>
+      <div class="sub" id="dash-sub">&mdash;</div>
     </div>
     <div class="header-right">
       <div class="live-dot"></div>
-      <span id="last-updated">â</span>
-      <button class="btn-sm" onclick="resetToSetup()">â Back</button>
+      <span id="last-updated">&mdash;</span>
+      <button class="btn-sm" onclick="resetToSetup()">&#8592; Back</button>
     </div>
   </div>
 
@@ -170,8 +170,7 @@
 
   <div class="content">
     <div class="tab-panel active" id="panel-runs">
-      <div class="loading"><div class="spinner"></div>Loading...</div>
-    </div>
+      <div class="loading"><div class="spinner"></div>
     <div class="tab-panel" id="panel-qa">
       <div class="loading"><div class="spinner"></div>Loading...</div>
     </div>
@@ -184,7 +183,7 @@ const PROJECT_ID = 2;
 
 let ALL_MILESTONES = [];
 let SELECTED_IDS = new Set();
-let CHILDREN_OF = {};   // parent_id â [child milestone]
+let CHILDREN_OF = {};   // parent_id &#8594; [child milestone]
 let MILESTONE_BY_ID = {};
 let CONFIG = {};
 let refreshTimer = null;
@@ -246,7 +245,7 @@ async function loadMilestones() {
 
     renderPicker();
   } catch(e) {
-    document.getElementById('ms-list').innerHTML = `<div class="picker-error">â ï¸ Failed to load milestones: ${e.message}</div>`;
+    document.getElementById('ms-list').innerHTML = `<div class="picker-error">&#9888; Failed to load milestones: ${e.message}</div>`;
   }
 }
 
@@ -255,7 +254,7 @@ function checkSvg() {
 }
 
 function renderMilestoneItem(ms, isChild, parentId) {
-  const due = ms.due_date ? ' Â· Due ' + ms.due_date : '';
+  const due = ms.due_date ? ' &middot; Due ' + ms.due_date : '';
   const isOpen = !ms.is_completed;
   const children = CHILDREN_OF[ms.id] || [];
   const isParent = children.length > 0;
@@ -370,7 +369,7 @@ function renderRuns(milestones) {
     <div class="summary-card">
       <div class="summary-pct">${pct}%</div>
       <div class="summary-right">
-        <div class="summary-label">Overall â ${milestones.length} milestone${milestones.length > 1 ? 's' : ''}, ${allRuns.length} runs</div>
+        <div class="summary-label">Overall &mdash; ${milestones.length} milestone${milestones.length > 1 ? 's' : ''}, ${allRuns.length} runs</div>
         <div class="big-bar-wrap"><div class="big-bar" style="width:${pct}%"></div></div>
         <div class="stats-row">
           <div class="stat"><div class="val">${totC}</div><div class="lbl">Tested</div></div>
@@ -390,7 +389,7 @@ function renderRuns(milestones) {
         <div class="milestone-group">
           <div class="milestone-group-header">
             <span class="milestone-group-name">${ms.name}</span>
-            <span class="milestone-group-stat">${msPct}% Â· ${msC}/${msT} tested</span>
+            <span class="milestone-group-stat">${msPct}% &middot; ${msC}/${msT} tested</span>
           </div>`;
     } else {
       html += `<div class="section-label">Runs</div>`;
@@ -406,7 +405,7 @@ function renderRuns(milestones) {
             <span class="badge ${p === 100 ? 'badge-done' : 'badge-prog'}">${p === 100 ? 'Done' : run.untested_count + ' left'}</span>
             <div class="card-bar-wrap"><div class="card-bar" style="width:${p}%;background:${barColor(p)}"></div></div>
             <span class="card-pct" style="color:${pctColor(p)}">${p}%</span>
-            <span class="chevron">â¼</span>
+            <span class="chevron">&#9660;</span>
           </div>
           <div class="card-detail">
             <div class="stat-sm"><div class="val">${run.completed_count}</div><div class="lbl">Tested</div></div>
@@ -432,7 +431,7 @@ function renderQA(qaData, allRuns, totalTests) {
     <div class="summary-card">
       <div class="summary-pct">${totalTests > 0 ? Math.round(totalCompleted / totalTests * 100) : 0}%</div>
       <div class="summary-right">
-        <div class="summary-label">Tests completed â by QA member</div>
+        <div class="summary-label">Tests completed &mdash; by QA member</div>
         <div class="big-bar-wrap"><div class="big-bar" style="width:${totalTests > 0 ? Math.round(totalCompleted/totalTests*100) : 0}%"></div></div>
         <div class="stats-row">
           <div class="stat"><div class="val">${totalCompleted}</div><div class="lbl">Completed</div></div>
@@ -468,14 +467,14 @@ function renderQA(qaData, allRuns, totalTests) {
           <span class="badge badge-prog">${d.completed} tested</span>
           <div class="card-bar-wrap"><div class="card-bar" style="width:${Math.min(sharePct,100)}%;background:${barColor(sharePct)}"></div></div>
           <span class="card-pct" style="color:${pctColor(Math.min(sharePct,100))}">${sharePct}%</span>
-          <span class="chevron">â¼</span>
+          <span class="chevron">&#9660;</span>
         </div>
         <div class="card-detail">
           <div class="stat-sm"><div class="val">${d.completed}</div><div class="lbl">Tests run</div></div>
           <div class="stat-sm"><div class="val">${sharePct}%</div><div class="lbl">Share of total</div></div>
           ${Object.entries(d.statuses||{}).map(([s,c]) => `<div class="stat-sm"><div class="val">${c}</div><div class="lbl">${statusName(s)}</div></div>`).join('')}
         </div>
-        <div class="qa-breakdown">${runRows || '<div style="padding:12px 16px;font-size:12px;color:var(--gray-400)">â</div>'}</div>
+        <div class="qa-breakdown">${runRows || '<div style="padding:12px 16px;font-size:12px;color:var(--gray-400)">&mdash;</div>'}</div>
       </div>`;
   }
 
@@ -502,7 +501,7 @@ async function loadData() {
       document.getElementById('dash-sub').textContent = milestones[0].due_date ? 'Due: ' + milestones[0].due_date : 'Milestone';
     } else {
       document.getElementById('dash-title').textContent = milestones.length + ' Milestones';
-      document.getElementById('dash-sub').textContent = milestones.map(m => m.name).join(' Â· ');
+      document.getElementById('dash-sub').textContent = milestones.map(m => m.name).join(' &middot; ');
     }
 
     renderRuns(milestones);
@@ -534,8 +533,8 @@ async function loadData() {
       'Updated ' + new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
 
   } catch(e) {
-    document.getElementById('panel-runs').innerHTML = `<div class="loading" style="color:#dc2626">â ï¸ ${e.message}</div>`;
-    document.getElementById('panel-qa').innerHTML = `<div class="loading" style="color:#dc2626">â ï¸ ${e.message}</div>`;
+    document.getElementById('panel-runs').innerHTML = `<div class="loadinrHTML = `<div class="loading" style="color:#dc2626">&#9888; ${e.message}</div>`;
+    document.getElementById('panel-qa').innerHTML = `<div class="loading" style="color:#dc2626">&#9888; ${e.message}</div>`;
   }
 }
 
