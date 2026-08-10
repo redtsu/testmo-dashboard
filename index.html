@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Testmo Progress Dashboard</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --gray-50: #f9fafb; --gray-100: #f3f4f6; --gray-200: #e5e7eb;
+      --gray-400: #9ca3af; --gray-500: #6b7280; --gray-600: #4b5563;
+      --gray-800: #1f2937; --gray-900: #111827;
+      --blue: #3b82f6; --green: #22c55e;
+    }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: var(--gray-50); color: var(--gray-800); min-height: 100vh; }
+
+    /* Setup */
+    .setup { display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 24px; }
+    .setup-card { background: #fff; border: 1px solid var(--gray-200); border-radius: 14px; padding: 32px; width: 100%; max-width: 520px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+    .setup-card h1 { font-size: 18px; font-weight: 700; margin-bottom: 4px; }
+    .setup-card .desc { font-size: 13px; color: var(--gray-500); margin-bottom: 20px; }
+
+    /* Milestone picker */
+    .picker-label { font-size: 12px; font-weight: 600; color: var(--gray-600); margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
+    .picker-hint { font-weight: 400; color: var(--gray-400); font-size: 11px; }
+    .ms-list { border: 1px solid var(--gray-200); border-radius: 10px; overflow: hidden; max-height: 320px; overflow-y: auto; }
+    .ms-item { display: flex; align-items: center; gap: 12px; padding: 12px 14px; cursor: pointer; border-bottom: 1px solid var(--gray-100); transition: background 0.1s; user-select: none; }
+    .ms-item:last-child { border-bottom: none; }
+    .ms-item:hover { background: var(--gray-50); }
+    .ms-item.selected { background: #eff6ff; }
+    .ms-item.ms-parent { background: var(--gray-50); }
+    .ms-item.ms-parent:hover { background: var(--gray-100); }
+    .ms-item.ms-parent.selected { background: #dbeafe; }
+    .ms-item.ms-parent .ms-meta { font-size: 11px; }
+    .ms-item.ms-child { padding-left: 36px; border-left: 3px solid var(--gray-100); }
+    .ms-item.ms-child.selected { border-left-color: var(--blue); }
+    .ms-parent-icon { font-size: 10px; color: var(--gray-400); flex-shrink: 0; transition: transform 0.2s; }
+    .ms-child-count { font-size: 10px; color: var(--gray-400); background: var(--gray-200); border-radius: 99px; padding: 1px 6px; flex-shrink: 0; }
+    .ms-check { width: 16px; height: 16px; border-radius: 4px; border: 1.5px solid var(--gray-300); flex-shrink: 0; display: flex; align-items: center; justify-content: center; transition: all 0.15s; }
+    .ms-item.selected .ms-check { background: var(--blue); border-color: var(--blue); }
+    .ms-check svg { display: none; }
+    .ms-item.selected .ms-check svg { display: block; }
+    .ms-info { flex: 1; min-width: 0; }
+    .ms-name { font-size: 13px; font-weight: 600; color: var(--gray-900); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .ms-meta { font-size: 11px; color: var(--gray-400); margin-top: 2px; }
+    .ms-badge { font-size: 10px; font-weight: 600; padding: 2px 6px; border-radius: 4px; flex-shrink: 0; }
+    .ms-badge-open { background: #dbeafe; color: #1d4ed8; }
+    .ms-badge-closed { background: var(--gray-100); color: var(--gray-500); }
+
+    .picker-loading { padding: 32px; text-align: center; color: var(--gray-400); font-size: 13px; }
+    .picker-error { padding: 20px; text-align: center; color: #dc2626; font-size: 13px; }
+
+    .select-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+    .select-all-btn { font-size: 11px; color: var(--blue); background: none; border: none; cursor: pointer; padding: 0; }
+    .selected-count { font-size: 11px; color: var(--gray-400); }
+
+    .btn { width: 100%; padding: 10px; background: var(--blue); color: #fff; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; margin-top: 16px; }
+    .btn:hover { opacity: 0.9; }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .error-msg { background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 10px 12px; font-size: 13px; color: #dc2626; margin-top: 12px; display: none; }
+
+    /* Dashboard */
+    .dashboard { display: none; }
+    .header { background: #fff; border-bottom: 1px solid var(--gray-200); padding: 14px 24px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 10; }
+    .header h1 { font-size: 17px; font-weight: 700; }
+    .header .sub { font-size: 12px; color: var(--gray-400); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 500px; }
+    .header-right { display: flex; align-items: center; gap: 10px; font-size: 12px; color: var(--gray-400); flex-shrink: 0; }
+    .live-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); animation: pulse 2s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+    .btn-sm { font-size: 12px; color: var(--gray-400); background: none; border: 1px solid var(--gray-200); border-radius: 6px; padding: 4px 10px; cursor: pointer; }
+
+    .tabs { background: #fff; border-bottom: 1px solid var(--gray-200); padding: 0 24px; display: flex; }
+    .tab { padding: 12px 16px; font-size: 14px; font-weight: 500; color: var(--gray-500); cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+    .tab:hover { color: var(--gray-800); }
+    .tab.active { color: var(--blue); border-bottom-color: var(--blue); font-weight: 600; }
+
+    .content { max-width: 740px; margin: 0 auto; padding: 24px 16px 48px; }
+
+    .summary-card { background: #fff; border: 1px solid var(--gray-200); border-radius: 14px; padding: 20px; margin-bottom: 16px; display: flex; gap: 20px; align-items: center; }
+    .summary-pct { font-size: 44px; font-weight: 800; line-height: 1; min-width: 90px; }
+    .summary-right { flex: 1; }
+    .summary-label { font-size: 12px; color: var(--gray-400); margin-bottom: 10px; }
+    .big-bar-wrap { background: var(--gray-100); border-radius: 99px; height: 10px; overflow: hidden; margin-bottom: 10px; }
+    .big-bar { height: 100%; border-radius: 99px; background: linear-gradient(90deg, #22c55e, #16a34a); transition: width 0.5s ease; }
+    .stats-row { display: flex; gap: 20px; flex-wrap: wrap; }
+    .stat .val { font-size: 16px; font-weight: 700; }
+    .stat .lbl { font-size: 11px; color: var(--gray-400); margin-top: 1px; }
+    .section-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--gray-400); margin: 16px 0 8px 2px; }
+    .milestone-group { margin-top: 20px; }
+    .milestone-group-header { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+    .milestone-group-name { font-size: 20px; font-weight: 700; color: var(--gray-800); }
+    .milestone-group-stat { font-size: 12px; color: var(--gray-400); }
+
+    .card { background: #fff; border: 1px solid var(--gray-200); border-radius: 12px; margin-bottom: 8px; overflow: hidden; }
+    .card-header { padding: 14px 16px; display: flex; align-items: center; gap: 10px; cursor: pointer; }
+    .card-name { flex: 1; font-size: 14px; font-weight: 600; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .badge { font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 99px; flex-shrink: 0; }
+    .badge-done { background: #dcfce7; color: #16a34a; }
+    .badge-prog { background: #fef3c7; color: #b45309; }
+    .card-bar-wrap { width: 120px; background: var(--gray-100); border-radius: 99px; height: 6px; overflow: hidden; flex-shrink: 0; }
+    .card-bar { height: 100%; border-radius: 99px; transition: width 0.4s ease; }
+    .card-pct { font-size: 13px; font-weight: 700; width: 38px; text-align: right; flex-shrink: 0; }
+    .chevron { font-size: 10px; color: var(--gray-400); transition: transform 0.2s; flex-shrink: 0; }
+    .card.open .chevron { transform: rotate(180deg); }
+    .card-detail { border-top: 1px solid var(--gray-100); padding: 12px 16px; background: var(--gray-50); display: flex; gap: 24px; flex-wrap: wrap; }
+    .stat-sm .val { font-size: 14px; font-weight: 700; }
+    .stat-sm .lbl { font-size: 11px; color: var(--gray-400); }
+
+    .qa-breakdown { border-top: 1px solid var(--gray-100); background: #fff; display: none; }
+    .card.open .qa-breakdown { display: block; }
+    .qa-row { display: flex; align-items: center; gap: 10px; padding: 10px 16px; border-bottom: 1px solid var(--gray-50); }
+    .qa-row:last-child { border-bottom: none; }
+    .qa-name { font-size: 12px; color: var(--gray-500); width: 100px; flex-shrink: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .qa-bar-wrap { flex: 1; background: var(--gray-100); border-radius: 99px; height: 5px; overflow: hidden; }
+    .qa-bar { height: 100%; border-radius: 99px; }
+    .qa-count { font-size: 11px; color: var(--gray-500); width: 70px; text-align: right; flex-shrink: 0; }
+    .qa-pct { font-size: 12px; font-weight: 600; width: 32px; text-align: right; flex-shrink: 0; }
+
+    .loading { text-align: center; padding: 60px 24px; color: var(--gray-400); font-size: 14px; }
+    .spinner { width: 24px; height: 24px; border: 2px solid var(--gray-200); border-top-color: var(--blue); border-radius: 50%; animation: spin 0.7s linear infinite; margin: 0 auto 12px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+  </style>
+</head>
+<body>
+
+<div class="setup" id="setup">
+  <div class="setup-card">
+    <h1>Testmo Progress Dashboard</h1>
+    <p class="desc">Select milestones to view</p>
+
+    <div class="select-bar">
+      <div class="picker-label" style="margin:0">
+        Milestones
+        <span class="picker-hint" id="selected-count" style="margin-left:8px"></span>
+      </div>
+      <button class="select-all-btn" id="select-all-btn" onclick="toggleSelectAll()" style="display:none">Select all</button>
+    </div>
+
+    <div class="ms-list" id="ms-list">
+      <div class="picker-loading">
+        <div class="spinner" style="margin-bottom:8px"></div>
+        Loading milestones...
+      </div>
+    </div>
+
+    <button class="btn" id="btn-load" onclick="startLoad()" disabled>Load Dashboard</button>
+    <div class="error-msg" id="error-msg"></div>
+  </div>
+</div>
+
+<div class="dashboard" id="dashboard">
+  <div class="header">
+    <div style="min-width:0;flex:1">
+      <h1 id="dash-title">Loading...</h1>
+      <div class="sub" id="dash-sub">â</div>
+    </div>
+    <div class="header-right">
+      <div class="live-dot"></div>
+      <span id="last-updated">â</span>
+      <button class="btn-sm" onclick="resetToSetup()">â Back</button>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab('runs')">By Run</div>
+    <div class="tab" onclick="switchTab('qa')">By QA</div>
+  </div>
+
+  <div class="content">
+    <div class="tab-panel active" id="panel-runs">
+      <div class="loading"><div class="spinner"></div>Loading...</div>
+    </div>
+    <div class="tab-panel" id="panel-qa">
+      <div class="loading"><div class="spinner"></div>Loading...</div>
+    </div>
+  </div>
+</div>
+
+<script>
+const PROXY = 'https://script.google.com/macros/s/AKfycbwlmF9XnkxNaxE6NolH49BTETaO76K5loQsymHTwbWWX2LDQ7JbHXhk3j5ilbI7_4i_/exec';
+const PROJECT_ID = 2;
+
+let ALL_MILESTONES = [];
+let SELECTED_IDS = new Set();
+let CHILDREN_OF = {};   // parent_id â [child milestone]
+let MILESTONE_BY_ID = {};
+let CONFIG = {};
+let refreshTimer = null;
+let CACHE = { milestones: [], users: {} };
+
+async function apiFetch(path) {
+  const url = PROXY + '?path=' + encodeURIComponent(path);
+  const res = await fetch(url);
+  if (!res.ok) throw new Error('Proxy error: ' + res.status);
+  const data = await res.json();
+  if (data.error) throw new Error(data.error);
+  return data;
+}
+
+
+async function fetchAllResults(runId) {
+  const results = [];
+  let page = 1;
+  while (true) {
+    const data = await apiFetch('runs/' + runId + '/results?limit=100&page=' + page);
+    const batch = data.result || [];
+    results.push(...batch);
+    if (batch.length < 100) break;
+    page++;
+  }
+  return results;
+}
+
+function barColor(p) { return p >= 90 ? '#22c55e' : p >= 60 ? '#3b82f6' : p >= 30 ? '#f59e0b' : '#ef4444'; }
+function pctColor(p) { return p >= 90 ? '#16a34a' : p >= 60 ? '#2563eb' : p >= 30 ? '#d97706' : '#dc2626'; }
+function statusName(id) { return {1:'Untested',2:'Passed',3:'Failed',4:'Retest',5:'Skipped',6:'Blocked'}[id] || 'Status '+id; }
+
+function switchTab(tab) {
+  document.querySelectorAll('.tab').forEach((t, i) => t.classList.toggle('active', ['runs','qa'][i] === tab));
+  document.querySelectorAll('.tab-panel').forEach((p, i) => p.classList.toggle('active', ['panel-runs','panel-qa'][i] === 'panel-' + tab));
+}
+
+function toggleCard(id) { document.getElementById(id).classList.toggle('open'); }
+
+// --- Milestone Picker ---
+async function loadMilestones() {
+  try {
+    const data = await apiFetch('projects/' + PROJECT_ID + '/milestones?limit=100');
+    ALL_MILESTONES = (data.result || []).sort((a, b) => {
+      if (a.is_completed !== b.is_completed) return a.is_completed ? 1 : -1;
+      return b.id - a.id;
+    });
+
+    // Build lookup maps
+    MILESTONE_BY_ID = {};
+    CHILDREN_OF = {};
+    ALL_MILESTONES.forEach(m => { MILESTONE_BY_ID[m.id] = m; });
+    ALL_MILESTONES.forEach(m => {
+      if (m.parent_id && MILESTONE_BY_ID[m.parent_id]) {
+        if (!CHILDREN_OF[m.parent_id]) CHILDREN_OF[m.parent_id] = [];
+        CHILDREN_OF[m.parent_id].push(m);
+      }
+    });
+
+    renderPicker();
+  } catch(e) {
+    document.getElementById('ms-list').innerHTML = `<div class="picker-error">â ï¸ Failed to load milestones: ${e.message}</div>`;
+  }
+}
+
+function checkSvg() {
+  return `<svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+}
+
+function renderMilestoneItem(ms, isChild, parentId) {
+  const due = ms.due_date ? ' Â· Due ' + ms.due_date : '';
+  const isOpen = !ms.is_completed;
+  const children = CHILDREN_OF[ms.id] || [];
+  const isParent = children.length > 0;
+  const extraClass = isChild ? 'ms-child' : (isParent ? 'ms-parent' : '');
+
+  let rightContent = `<span class="ms-badge ${isOpen ? 'ms-badge-open' : 'ms-badge-closed'}">${isOpen ? 'Open' : 'Closed'}</span>`;
+  if (isParent) {
+    rightContent = `<span class="ms-child-count">${children.length} sub</span>` + rightContent;
+  }
+
+  return `
+    <div class="ms-item ${extraClass}" id="ms-item-${ms.id}" onclick="toggleMilestone(${ms.id})">
+      <div class="ms-check">${checkSvg()}</div>
+      <div class="ms-info">
+        <div class="ms-name">${ms.name}</div>
+        <div class="ms-meta">#${ms.id}${due}</div>
+      </div>
+      ${rightContent}
+    </div>`;
+}
+
+function renderPicker() {
+  if (ALL_MILESTONES.length === 0) {
+    document.getElementById('ms-list').innerHTML = '<div class="picker-loading">No milestones found</div>';
+    return;
+  }
+
+  document.getElementById('select-all-btn').style.display = 'block';
+
+  // Determine which milestones are "top-level" in the picker
+  // (either no parent, or parent not in our list)
+  const renderedIds = new Set();
+  let html = '';
+
+  for (const ms of ALL_MILESTONES) {
+    if (renderedIds.has(ms.id)) continue;
+    const isChild = ms.parent_id && MILESTONE_BY_ID[ms.parent_id];
+    if (isChild) continue; // render children after their parent
+
+    html += renderMilestoneItem(ms, false);
+    renderedIds.add(ms.id);
+
+    // Render children immediately after parent
+    const children = CHILDREN_OF[ms.id] || [];
+    for (const child of children) {
+      html += renderMilestoneItem(child, true, ms.id);
+      renderedIds.add(child.id);
+    }
+  }
+
+  document.getElementById('ms-list').innerHTML = html;
+  updateSelectedCount();
+}
+
+function getGroupIds(id) {
+  // Returns the milestone itself + all its children (if any)
+  const children = CHILDREN_OF[id] || [];
+  return [id, ...children.map(c => c.id)];
+}
+
+function toggleMilestone(id) {
+  const groupIds = getGroupIds(id);
+  const allSelected = groupIds.every(gid => SELECTED_IDS.has(gid));
+
+  if (allSelected) {
+    groupIds.forEach(gid => {
+      SELECTED_IDS.delete(gid);
+      document.getElementById('ms-item-' + gid)?.classList.remove('selected');
+    });
+  } else {
+    groupIds.forEach(gid => {
+      SELECTED_IDS.add(gid);
+      document.getElementById('ms-item-' + gid)?.classList.add('selected');
+    });
+  }
+  updateSelectedCount();
+}
+
+function toggleSelectAll() {
+  const btn = document.getElementById('select-all-btn');
+  if (SELECTED_IDS.size === ALL_MILESTONES.length) {
+    SELECTED_IDS.clear();
+    ALL_MILESTONES.forEach(ms => document.getElementById('ms-item-' + ms.id)?.classList.remove('selected'));
+    btn.textContent = 'Select all';
+  } else {
+    ALL_MILESTONES.forEach(ms => {
+      SELECTED_IDS.add(ms.id);
+      document.getElementById('ms-item-' + ms.id)?.classList.add('selected');
+    });
+    btn.textContent = 'Deselect all';
+  }
+  updateSelectedCount();
+}
+
+function updateSelectedCount() {
+  const count = SELECTED_IDS.size;
+  document.getElementById('selected-count').textContent = count > 0 ? `(${count} selected)` : '';
+  document.getElementById('btn-load').disabled = count === 0;
+  const btn = document.getElementById('select-all-btn');
+  if (btn) btn.textContent = count === ALL_MILESTONES.length ? 'Deselect all' : 'Select all';
+}
+
+// --- Dashboard ---
+function renderRuns(milestones) {
+  const allRuns = milestones.flatMap(m => m.runs);
+  const totC = allRuns.reduce((s, r) => s + r.completed_count, 0);
+  const totT = allRuns.reduce((s, r) => s + r.total_count, 0);
+  const totU = allRuns.reduce((s, r) => s + r.untested_count, 0);
+  const pct = totT > 0 ? Math.round(totC / totT * 100) : 0;
+
+  let html = `
+    <div class="summary-card">
+      <div class="summary-pct">${pct}%</div>
+      <div class="summary-right">
+        <div class="summary-label">Overall â ${milestones.length} milestone${milestones.length > 1 ? 's' : ''}, ${allRuns.length} runs</div>
+        <div class="big-bar-wrap"><div class="big-bar" style="width:${pct}%"></div></div>
+        <div class="stats-row">
+          <div class="stat"><div class="val">${totC}</div><div class="lbl">Tested</div></div>
+          <div class="stat"><div class="val">${totU}</div><div class="lbl">Remaining</div></div>
+          <div class="stat"><div class="val">${totT}</div><div class="lbl">Total</div></div>
+        </div>
+      </div>
+    </div>`;
+
+  for (const ms of milestones) {
+    const msC = ms.runs.reduce((s, r) => s + r.completed_count, 0);
+    const msT = ms.runs.reduce((s, r) => s + r.total_count, 0);
+    const msPct = msT > 0 ? Math.round(msC / msT * 100) : 0;
+
+    if (milestones.length > 1) {
+      html += `
+        <div class="milestone-group">
+          <div class="milestone-group-header">
+            <span class="milestone-group-name">${ms.name}</span>
+            <span class="milestone-group-stat">${msPct}% Â· ${msC}/${msT} tested</span>
+          </div>`;
+    } else {
+      html += `<div class="section-label">Runs</div>`;
+    }
+
+    for (const run of ms.runs) {
+      const p = run.total_count > 0 ? Math.round(run.completed_count / run.total_count * 100) : 0;
+      const cardId = `card-run-${ms.id}-${run.id}`;
+      html += `
+        <div class="card" id="${cardId}">
+          <div class="card-header" onclick="toggleCard('${cardId}')">
+            <span class="card-name">${run.name}</span>
+            <span class="badge ${p === 100 ? 'badge-done' : 'badge-prog'}">${p === 100 ? 'Done' : run.untested_count + ' left'}</span>
+            <div class="card-bar-wrap"><div class="card-bar" style="width:${p}%;background:${barColor(p)}"></div></div>
+            <span class="card-pct" style="color:${pctColor(p)}">${p}%</span>
+            <span class="chevron">â¼</span>
+          </div>
+          <div class="card-detail">
+            <div class="stat-sm"><div class="val">${run.completed_count}</div><div class="lbl">Tested</div></div>
+            <div class="stat-sm"><div class="val">${run.untested_count}</div><div class="lbl">Remaining</div></div>
+            <div class="stat-sm"><div class="val">${run.total_count}</div><div class="lbl">Total</div></div>
+            <div class="stat-sm"><div class="val">${run.success_count}</div><div class="lbl">Passed</div></div>
+            <div class="stat-sm"><div class="val">${run.failure_count}</div><div class="lbl">Failed</div></div>
+          </div>
+        </div>`;
+    }
+
+    if (milestones.length > 1) html += `</div>`;
+  }
+
+  document.getElementById('panel-runs').innerHTML = html;
+}
+
+function renderQA(qaData, allRuns, totalTests) {
+  const sorted = Object.entries(qaData).sort((a, b) => b[1].completed - a[1].completed);
+  const totalCompleted = sorted.reduce((s, [, d]) => s + d.completed, 0);
+
+  let html = `
+    <div class="summary-card">
+      <div class="summary-pct">${totalTests > 0 ? Math.round(totalCompleted / totalTests * 100) : 0}%</div>
+      <div class="summary-right">
+        <div class="summary-label">Tests completed â by QA member</div>
+        <div class="big-bar-wrap"><div class="big-bar" style="width:${totalTests > 0 ? Math.round(totalCompleted/totalTests*100) : 0}%"></div></div>
+        <div class="stats-row">
+          <div class="stat"><div class="val">${totalCompleted}</div><div class="lbl">Completed</div></div>
+          <div class="stat"><div class="val">${totalTests - totalCompleted}</div><div class="lbl">Remaining</div></div>
+          <div class="stat"><div class="val">${totalTests}</div><div class="lbl">Total</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="section-label">QA Members</div>`;
+
+  for (const [uid, d] of sorted) {
+    if (d.completed === 0) continue;
+    const sharePct = totalCompleted > 0 ? Math.round(d.completed / totalCompleted * 100) : 0;
+
+    let runRows = '';
+    for (const run of allRuns) {
+      const cnt = (d.byRun && d.byRun[run.id]) || 0;
+      if (cnt === 0) continue;
+      const rp = run.total_count > 0 ? Math.round(cnt / run.total_count * 100) : 0;
+      runRows += `
+        <div class="qa-row">
+          <span class="qa-name">${run.name}</span>
+          <div class="qa-bar-wrap"><div class="qa-bar" style="width:${rp}%;background:${barColor(rp)}"></div></div>
+          <span class="qa-count">${cnt} tested</span>
+          <span class="qa-pct" style="color:${pctColor(rp)}">${rp}%</span>
+        </div>`;
+    }
+
+    html += `
+      <div class="card" id="card-qa-${uid}">
+        <div class="card-header" onclick="toggleCard('card-qa-${uid}')">
+          <span class="card-name">${d.name}</span>
+          <span class="badge badge-prog">${d.completed} tested</span>
+          <div class="card-bar-wrap"><div class="card-bar" style="width:${Math.min(sharePct,100)}%;background:${barColor(sharePct)}"></div></div>
+          <span class="card-pct" style="color:${pctColor(Math.min(sharePct,100))}">${sharePct}%</span>
+          <span class="chevron">â¼</span>
+        </div>
+        <div class="card-detail">
+          <div class="stat-sm"><div class="val">${d.completed}</div><div class="lbl">Tests run</div></div>
+          <div class="stat-sm"><div class="val">${sharePct}%</div><div class="lbl">Share of total</div></div>
+          ${Object.entries(d.statuses||{}).map(([s,c]) => `<div class="stat-sm"><div class="val">${c}</div><div class="lbl">${statusName(s)}</div></div>`).join('')}
+        </div>
+        <div class="qa-breakdown">${runRows || '<div style="padding:12px 16px;font-size:12px;color:var(--gray-400)">â</div>'}</div>
+      </div>`;
+  }
+
+  document.getElementById('panel-qa').innerHTML = html;
+}
+
+async function loadData() {
+  try {
+    const usersData = await apiFetch('projects/' + PROJECT_ID + '/users');
+    CACHE.users = {};
+    (usersData.result || []).forEach(u => CACHE.users[u.id] = u.name);
+
+    const milestones = await Promise.all(CONFIG.milestoneIds.map(async msId => {
+      const msData = await apiFetch('milestones/' + msId);
+      const ms = msData.result;
+      const runsData = await apiFetch('projects/' + ms.project_id + '/runs?milestone_id=' + msId + '&limit=100');
+      return { id: msId, name: ms.name, due_date: ms.due_date, runs: runsData.result || [] };
+    }));
+
+    CACHE.milestones = milestones;
+
+    if (milestones.length === 1) {
+      document.getElementById('dash-title').textContent = milestones[0].name;
+      document.getElementById('dash-sub').textContent = milestones[0].due_date ? 'Due: ' + milestones[0].due_date : 'Milestone';
+    } else {
+      document.getElementById('dash-title').textContent = milestones.length + ' Milestones';
+      document.getElementById('dash-sub').textContent = milestones.map(m => m.name).join(' Â· ');
+    }
+
+    renderRuns(milestones);
+
+    document.getElementById('panel-qa').innerHTML = '<div class="loading"><div class="spinner"></div>Loading QA data...</div>';
+
+    const allRuns = milestones.flatMap(m => m.runs);
+    const allResults = [];
+    for (const run of allRuns) {
+      const results = await fetchAllResults(run.id);
+      results.forEach(r => { r._run_id = run.id; });
+      allResults.push(...results);
+    }
+
+    const qaData = {};
+    const totalTests = allRuns.reduce((s, r) => s + r.total_count, 0);
+    allResults.forEach(r => {
+      const uid = r.created_by;
+      if (!uid) return;
+      if (!qaData[uid]) qaData[uid] = { name: CACHE.users[uid] || 'User ' + uid, completed: 0, statuses: {}, byRun: {} };
+      qaData[uid].completed++;
+      qaData[uid].statuses[r.status_id] = (qaData[uid].statuses[r.status_id] || 0) + 1;
+      qaData[uid].byRun[r._run_id] = (qaData[uid].byRun[r._run_id] || 0) + 1;
+    });
+
+    renderQA(qaData, allRuns, totalTests);
+
+    document.getElementById('last-updated').textContent =
+      'Updated ' + new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+
+  } catch(e) {
+    document.getElementById('panel-runs').innerHTML = `<div class="loading" style="color:#dc2626">â ï¸ ${e.message}</div>`;
+    document.getElementById('panel-qa').innerHTML = `<div class="loading" style="color:#dc2626">â ï¸ ${e.message}</div>`;
+  }
+}
+
+async function startLoad() {
+  if (SELECTED_IDS.size === 0) return;
+  CONFIG = { milestoneIds: [...SELECTED_IDS] };
+  document.getElementById('btn-load').disabled = true;
+  document.getElementById('setup').style.display = 'none';
+  document.getElementById('dashboard').style.display = 'block';
+  await loadData();
+  clearInterval(refreshTimer);
+  refreshTimer = setInterval(loadData, 120000);
+}
+
+function resetToSetup() {
+  clearInterval(refreshTimer);
+  document.getElementById('dashboard').style.display = 'none';
+  document.getElementById('setup').style.display = 'flex';
+  document.getElementById('btn-load').disabled = SELECTED_IDS.size === 0;
+}
+
+// Init
+loadMilestones();
+</script>
+</body>
+</html>
