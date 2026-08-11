@@ -1,4 +1,4 @@
- <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -228,10 +228,9 @@ function toggleCard(id) { document.getElementById(id).classList.toggle('open'); 
 async function loadMilestones() {
   try {
     const data = await apiFetch('projects/' + PROJECT_ID + '/milestones?limit=100');
-    ALL_MILESTONES = (data.result || []).sort((a, b) => {
-      if (a.is_completed !== b.is_completed) return a.is_completed ? 1 : -1;
-      return b.id - a.id;
-    });
+    ALL_MILESTONES = (data.result || [])
+      .filter(m => !m.is_completed)
+      .sort((a, b) => b.id - a.id);
 
     // Build lookup maps
     MILESTONE_BY_ID = {};
@@ -410,7 +409,7 @@ function renderRuns(milestones) {
           </div>
           <div class="card-detail">
             <div class="stat-sm"><div class="val">${run.completed_count}</div><div class="lbl">Tested</div></div>
-            <div class="stat-sm"><div class="val">${run.untested_count}</div><div class="lbl">Remaining</div></div>
+            <div class="stat-sm"><div class="val">${run.untested_count}</d)v><div class="lbl">Remaining</div></div>
             <div class="stat-sm"><div class="val">${run.total_count}</div><div class="lbl">Total</div></div>
             <div class="stat-sm"><div class="val">${run.success_count}</div><div class="lbl">Passed</div></div>
             <div class="stat-sm"><div class="val">${run.failure_count}</div><div class="lbl">Failed</div></div>
