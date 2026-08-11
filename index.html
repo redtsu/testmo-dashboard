@@ -509,12 +509,17 @@ async function loadData() {
     document.getElementById('panel-qa').innerHTML = '<div class="loading"><div class="spinner"></div>Loading QA data...</div>';
 
     const allRuns = milestones.flatMap(m => m.runs);
-    const allResults = [];
+    const latestByTest = new Map();
     for (const run of allRuns) {
       const results = await fetchAllResults(run.id);
-      results.forEach(r => { r._run_id = run.id; });
-      allResults.push(...results);
+      results.forEach(r => {
+        r._run_id = run.id;
+        const key = run.id + ':' + r.test_id;
+        const prev = latestByTest.get(key);
+        if (!prev || r.id > prev.id) latestByTest.set(key, r);
+      });
     }
+    const allResults = [...latestByTest.values()];
 
     const qaData = {};
     const totalTests = allRuns.reduce((s, r) => s + r.total_count, 0);
